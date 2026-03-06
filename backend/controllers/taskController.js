@@ -19,7 +19,7 @@ async function fixColumnPriorities(userId, status) {
 // CREATE TASK
 exports.createTask = async (req, res) => {
   try {
-    const { title, description } = req.body;
+    const { title, description, deadline } = req.body;
 
     if (!title) {
       return res.status(400).json({ message: "Title is required" });
@@ -35,6 +35,7 @@ exports.createTask = async (req, res) => {
     const task = await Task.create({
       title,
       description,
+      deadline,
       priority: newPriority,
       user: req.user._id,
     });
@@ -89,6 +90,8 @@ exports.getTasks = asyncHandler(async (req, res) => {
   });
 });
 
+
+// UPDATE TASKS
 exports.updateTask = async (req, res) => {
   try {
 
@@ -102,6 +105,18 @@ exports.updateTask = async (req, res) => {
     }
 
     const oldStatus = task.status;
+
+    if (req.body.title) {
+      task.title = req.body.title;
+    }
+
+    if (req.body.description !== undefined) {
+      task.description = req.body.description;
+    }
+
+    if (req.body.deadline !== undefined) {
+      task.deadline = req.body.deadline;
+    }
 
     if (req.body.status) {
       task.status = req.body.status;

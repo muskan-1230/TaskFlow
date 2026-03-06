@@ -13,6 +13,13 @@ import { CSS } from "@dnd-kit/utilities";
 
 function SortableTask({ task, deleteTask, updateStatus }) {
 
+  const [editMode,setEditMode] = useState(false);
+  const [editTitle,setEditTitle] = useState(task.title);
+  const [editDesc,setEditDesc] = useState(task.description || "");
+  const [editDeadline,setEditDeadline] = useState(
+    task.deadline ? task.deadline.substring(0,10) : ""
+  );
+
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: task._id });
 
@@ -20,6 +27,27 @@ function SortableTask({ task, deleteTask, updateStatus }) {
     transform: CSS.Transform.toString(transform),
     transition
   };
+
+  const saveEdit = async () => {
+
+  await axios.put(
+    `http://localhost:5000/api/tasks/${task._id}`,
+    {
+      title:editTitle,
+      description:editDesc,
+      deadline:editDeadline
+    },
+    {
+      headers:{
+        Authorization:`Bearer ${localStorage.getItem("token")}`
+      }
+    }
+  );
+
+  setEditMode(false);
+  window.location.reload();
+
+};
 
   return (
 
@@ -37,7 +65,59 @@ function SortableTask({ task, deleteTask, updateStatus }) {
         ⠿ Drag
       </div>
 
-      <h3 className="font-semibold">{task.title}</h3>
+      {editMode ? (
+
+<>
+<input
+  value={editTitle}
+  onChange={(e)=>setEditTitle(e.target.value)}
+  className="border p-1 rounded w-full"
+/>
+
+<textarea
+  value={editDesc}
+  onChange={(e)=>setEditDesc(e.target.value)}
+  className="border p-1 rounded w-full mt-1"
+/>
+
+<input
+  type="date"
+  value={editDeadline}
+  onChange={(e)=>setEditDeadline(e.target.value)}
+  className="border p-1 rounded w-full mt-1"
+/>
+
+<button
+  onClick={saveEdit}
+  className="bg-green-500 text-white px-2 py-1 rounded mt-2"
+>
+Save
+</button>
+
+</>
+
+) : (
+
+<>
+<h3 className="font-semibold">{task.title}</h3>
+
+<button
+  onClick={()=>setEditMode(true)}
+  className="text-blue-500 text-sm"
+>
+Edit
+</button>
+</>
+
+)}
+
+      <p className="text-sm text-gray-600">
+        {task.description}
+      </p>
+
+      <p className="text-xs text-gray-400">
+        {task.deadline ? new Date(task.deadline).toLocaleDateString() : ""}
+      </p>
 
       <p className="text-sm text-gray-500 mb-2">
         Priority: {task.priority}
@@ -137,7 +217,8 @@ function TaskList() {
   const [search,setSearch] = useState("");
   const [newTaskTitle,setNewTaskTitle] = useState("");
   const [filter,setFilter] = useState("all");
-
+  const [description,setDescription] = useState("");
+  const [deadline,setDeadline] = useState("");
   const token = localStorage.getItem("token");
 
   const fetchTasks = async () => {
@@ -163,13 +244,19 @@ function TaskList() {
 
     await axios.post(
       "http://localhost:5000/api/tasks",
-      {title:newTaskTitle},
+      {
+        title:newTaskTitle,
+        description,
+        deadline
+      },
       {
         headers:{Authorization:`Bearer ${token}`}
       }
     );
 
     setNewTaskTitle("");
+    setDescription("");
+    setDeadline("");
     fetchTasks();
 
   };
@@ -294,9 +381,24 @@ function TaskList() {
 
         <input
           type="text"
-          placeholder="New task"
+          placeholder="New task title"
           value={newTaskTitle}
           onChange={(e)=>setNewTaskTitle(e.target.value)}
+          className="border p-2 rounded"
+        />
+
+        <input
+          type="text"
+          placeholder="Description"
+          value={description}
+          onChange={(e)=>setDescription(e.target.value)}
+          className="border p-2 rounded"
+        />
+
+        <input
+          type="date"
+          value={deadline}
+          onChange={(e)=>setDeadline(e.target.value)}
           className="border p-2 rounded"
         />
 
