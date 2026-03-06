@@ -1,21 +1,17 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 
-import {
-  DndContext,
-  closestCenter,
-  useDroppable
-} from "@dnd-kit/core";
-
+import { DndContext, closestCenter } from "@dnd-kit/core";
 import {
   SortableContext,
   verticalListSortingStrategy,
-  useSortable
+  useSortable,
+  arrayMove
 } from "@dnd-kit/sortable";
 
 import { CSS } from "@dnd-kit/utilities";
 
-function SortableTask({ task, handleDelete }) {
+function SortableTask({ task, deleteTask, updateStatus }) {
 
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: task._id });
@@ -26,74 +22,121 @@ function SortableTask({ task, handleDelete }) {
   };
 
   return (
+
     <div
       ref={setNodeRef}
       style={style}
-      className="bg-white p-4 rounded-lg shadow border mb-3"
+      className="bg-white p-4 rounded-lg shadow mb-3"
     >
+
       <div
         {...attributes}
         {...listeners}
-        className="cursor-grab text-gray-400 mb-2"
+        className="cursor-move text-gray-400 mb-2"
       >
         ⠿ Drag
       </div>
 
       <h3 className="font-semibold">{task.title}</h3>
 
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-gray-500 mb-2">
         Priority: {task.priority}
       </p>
 
+      <select
+        value={task.status}
+        onChange={(e)=>updateStatus(task._id,e.target.value)}
+        className="border p-1 rounded mb-2"
+      >
+        <option value="pending">Pending</option>
+        <option value="inprogress">In Progress</option>
+        <option value="completed">Completed</option>
+      </select>
+
+      <br/>
+
       <button
-        onClick={() => handleDelete(task._id)}
-        className="bg-red-500 text-white px-3 py-1 rounded mt-2"
+        onClick={()=>deleteTask(task._id)}
+        className="bg-red-500 text-white px-3 py-1 rounded"
       >
         Delete
       </button>
+
     </div>
+
   );
 }
 
-function Column({ id, title, color, tasks, handleDelete }) {
+function Column({
+  title,
+  color,
+  tasks,
+  deleteTask,
+  updateStatus,
+  updatePriority
+}) {
 
-  const { setNodeRef } = useDroppable({
-    id: id
-  });
+  const handleDragEnd = (event) => {
+
+    const { active, over } = event;
+
+    if (!over) return;
+
+    if (active.id !== over.id) {
+
+      const oldIndex = tasks.findIndex(t => t._id === active.id);
+      const newIndex = tasks.findIndex(t => t._id === over.id);
+
+      const newTasks = arrayMove(tasks, oldIndex, newIndex);
+
+      updatePriority(newTasks);
+
+    }
+
+  };
 
   return (
-    <div
-      ref={setNodeRef}
-      className={`${color} p-4 rounded-lg min-h-[400px]`}
-    >
+
+    <div className={`${color} p-4 rounded-lg min-h-[400px]`}>
 
       <h2 className="font-bold mb-4">{title}</h2>
 
-      <SortableContext
-        items={tasks.map((t) => t._id)}
-        strategy={verticalListSortingStrategy}
+      <DndContext
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
       >
 
-        {tasks.map((task) => (
-          <SortableTask
-            key={task._id}
-            task={task}
-            handleDelete={handleDelete}
-          />
-        ))}
+        <SortableContext
+          items={tasks.map(t=>t._id)}
+          strategy={verticalListSortingStrategy}
+        >
 
-      </SortableContext>
+          {tasks.map(task => (
+
+            <SortableTask
+              key={task._id}
+              task={task}
+              deleteTask={deleteTask}
+              updateStatus={updateStatus}
+            />
+
+          ))}
+
+        </SortableContext>
+
+      </DndContext>
 
     </div>
+
   );
 }
 
 function TaskList() {
 
-  const [tasks, setTasks] = useState([]);
-  const [search, setSearch] = useState("");
-  const [newTaskTitle, setNewTaskTitle] = useState("");
-  const [filter, setFilter] = useState("all");
+  const [tasks,setTasks] = useState([]);
+  const [search,setSearch] = useState("");
+  const [newTaskTitle,setNewTaskTitle] = useState("");
+  const [filter,setFilter] = useState("all");
 
   const token = localStorage.getItem("token");
 
@@ -102,115 +145,121 @@ function TaskList() {
     const res = await axios.get(
       "http://localhost:5000/api/tasks",
       {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+        headers:{Authorization:`Bearer ${token}`}
       }
     );
 
     setTasks(res.data.tasks);
+
   };
 
-  useEffect(() => {
+  useEffect(()=>{
     fetchTasks();
-  }, []);
+  },[]);
 
   const createTask = async () => {
 
-    if (!newTaskTitle.trim()) return;
+    if(!newTaskTitle.trim()) return;
 
     await axios.post(
       "http://localhost:5000/api/tasks",
-      { title: newTaskTitle },
+      {title:newTaskTitle},
       {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+        headers:{Authorization:`Bearer ${token}`}
       }
     );
 
     setNewTaskTitle("");
     fetchTasks();
+
   };
 
   const deleteTask = async (id) => {
 
-    await axios.delete(
-      `http://localhost:5000/api/tasks/${id}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`
+  await axios.delete(
+    `http://localhost:5000/api/tasks/${id}`,
+    {
+      headers:{Authorization:`Bearer ${token}`}
+    }
+  );
+
+  await axios.put(
+    "http://localhost:5000/api/tasks/reorder",
+    {},
+    {
+      headers:{Authorization:`Bearer ${token}`}
+    }
+  );
+
+  fetchTasks();
+
+};
+
+  const updateStatus = async (id,status) => {
+
+  await axios.put(
+    `http://localhost:5000/api/tasks/${id}`,
+    {status},
+    {
+      headers:{Authorization:`Bearer ${token}`}
+    }
+  );
+
+  await axios.put(
+    "http://localhost:5000/api/tasks/reorder",
+    {},
+    {
+      headers:{Authorization:`Bearer ${token}`}
+    }
+  );
+
+  fetchTasks();
+
+};
+
+  const updatePriority = async (tasksArray) => {
+
+    for(let i=0;i<tasksArray.length;i++){
+
+      await axios.put(
+        `http://localhost:5000/api/tasks/${tasksArray[i]._id}/priority`,
+        {newPriority:i+1},
+        {
+          headers:{Authorization:`Bearer ${token}`}
         }
-      }
-    );
-
-    fetchTasks();
-  };
-
-  const updateStatus = async (id, status) => {
-
-    await axios.put(
-      `http://localhost:5000/api/tasks/${id}`,
-      { status },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      }
-    );
-
-    fetchTasks();
-  };
-
-  const handleDragEnd = async (event) => {
-
-    const { active, over } = event;
-
-    if (!over) return;
-
-    const draggedTask = tasks.find(t => t._id === active.id);
-
-    if (!draggedTask) return;
-
-    const newStatus = over.id;
-
-    if (draggedTask.status !== newStatus) {
-
-      await updateStatus(active.id, newStatus);
+      );
 
     }
 
+    fetchTasks();
+
+  };
+
+  const logout = ()=>{
+    localStorage.removeItem("token");
+    window.location.reload();
   };
 
   let filteredTasks = tasks.filter(task =>
     task.title.toLowerCase().includes(search.toLowerCase())
   );
 
-  if (filter !== "all") {
-
-    filteredTasks = filteredTasks.filter(
-      task => task.status === filter
-    );
-
+  if(filter!=="all"){
+    filteredTasks = filteredTasks.filter(t=>t.status===filter);
   }
 
-  const pending = filteredTasks.filter(t => t.status === "pending");
-  const progress = filteredTasks.filter(t => t.status === "inprogress");
-  const completed = filteredTasks.filter(t => t.status === "completed");
+  const pending = filteredTasks.filter(t=>t.status==="pending");
+  const progress = filteredTasks.filter(t=>t.status==="inprogress");
+  const completed = filteredTasks.filter(t=>t.status==="completed");
 
-  const logout = () => {
-    localStorage.removeItem("token");
-    window.location.reload();
-  };
-
-  return (
+  return(
 
     <div className="max-w-7xl mx-auto p-6">
 
       <div className="flex justify-between mb-6">
 
         <h1 className="text-3xl font-bold">
-          Task Board
+          TaskFlow Dashboard
         </h1>
 
         <button
@@ -259,42 +308,36 @@ function TaskList() {
         </button>
 
       </div>
+      <div className="grid grid-cols-3 gap-6">
 
-      <DndContext
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
+        <Column
+          title="Pending"
+          color="bg-yellow-100"
+          tasks={pending}
+          deleteTask={deleteTask}
+          updateStatus={updateStatus}
+          updatePriority={updatePriority}
+        />
 
-        <div className="grid grid-cols-3 gap-6">
+        <Column
+          title="In Progress"
+          color="bg-blue-100"
+          tasks={progress}
+          deleteTask={deleteTask}
+          updateStatus={updateStatus}
+          updatePriority={updatePriority}
+        />
 
-          <Column
-            id="pending"
-            title="Pending"
-            color="bg-yellow-100"
-            tasks={pending}
-            handleDelete={deleteTask}
-          />
+        <Column
+          title="Completed"
+          color="bg-green-100"
+          tasks={completed}
+          deleteTask={deleteTask}
+          updateStatus={updateStatus}
+          updatePriority={updatePriority}
+        />
 
-          <Column
-            id="inprogress"
-            title="In Progress"
-            color="bg-blue-100"
-            tasks={progress}
-            handleDelete={deleteTask}
-          />
-
-          <Column
-            id="completed"
-            title="Completed"
-            color="bg-green-100"
-            tasks={completed}
-            handleDelete={deleteTask}
-          />
-
-        </div>
-
-      </DndContext>
-
+      </div>
     </div>
 
   );

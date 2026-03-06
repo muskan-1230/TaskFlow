@@ -1,6 +1,21 @@
 const Task = require("../models/Task");
 const asyncHandler = require("../utils/asyncHandler");
 
+// COUMMN PRIORITY
+async function fixColumnPriorities(userId, status) {
+
+  const tasks = await Task.find({
+    user: userId,
+    status: status
+  }).sort("priority");
+
+  for (let i = 0; i < tasks.length; i++) {
+    tasks[i].priority = i + 1;
+    await tasks[i].save();
+  }
+
+}
+
 // CREATE TASK
 exports.createTask = async (req, res) => {
   try {
@@ -10,8 +25,10 @@ exports.createTask = async (req, res) => {
       return res.status(400).json({ message: "Title is required" });
     }
 
-    const lastTask = await Task.findOne({ user: req.user._id })
-      .sort("-priority");
+    const lastTask = await Task.findOne({
+  user: req.user._id,
+  status: "pending"
+}).sort("-priority");
 
     const newPriority = lastTask ? lastTask.priority + 1 : 1;
     
@@ -72,71 +89,67 @@ exports.getTasks = asyncHandler(async (req, res) => {
   });
 });
 
-// UPDATE TASK
-exports.updateTask = asyncHandler(async (req, res) => {
-  const { title, description, status } = req.body;
+exports.updateTask = async (req, res) => {
+  try {
 
-  const task = await Task.findOne({
-    _id: req.params.id,
-    user: req.user._id,
-  });
+    const task = await Task.findOne({
+      _id: req.params.id,
+      user: req.user._id
+    });
 
-  if (!task) {
-    res.status(404);
-    throw new Error("Task not found");
-  }
-
-  if (title !== undefined) task.title = title;
-  if (description !== undefined) task.description = description;
-
-  if (status !== undefined) {
-    const allowedStatus = ["pending", "in-progress", "completed"];
-
-    if (!allowedStatus.includes(status)) {
-      res.status(400);
-      throw new Error("Invalid status value");
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
     }
 
-    task.status = status;
+    const oldStatus = task.status;
+
+    if (req.body.status) {
+      task.status = req.body.status;
+    }
+
+    await task.save();
+
+    await fixColumnPriorities(req.user._id, oldStatus);
+    await fixColumnPriorities(req.user._id, task.status);
+
+    res.json(task);
+
+  } catch (error) {
+
+    console.error(error);
+    res.status(500).json({ message: error.message });
+
   }
-
-  await task.save();
-
-  res.json({
-    success: true,
-    task,
-  });
-});
+};
 
 // DELETE TASK
-exports.deleteTask = asyncHandler(async (req, res) => {
-  const task = await Task.findOne({
-    _id: req.params.id,
-    user: req.user._id,
-  });
+exports.deleteTask = async (req, res) => {
 
-  if (!task) {
-    res.status(404);
-    throw new Error("Task not found");
+  try {
+
+    const task = await Task.findOneAndDelete({
+      _id: req.params.id,
+      user: req.user._id
+    });
+
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    await fixColumnPriorities(req.user._id, task.status);
+
+    res.json({ message: "Task deleted" });
+
+  } catch (error) {
+
+    console.error(error);
+    res.status(500).json({ message: error.message });
+
   }
 
-  const deletedPriority = task.priority;
+};
 
-  await task.deleteOne();
-
-  await Task.updateMany(
-    {
-      user: req.user._id,
-      priority: { $gt: deletedPriority },
-    },
-    { $inc: { priority: -1 } }
-  );
-
-  res.json({
-    success: true,
-    message: "Task deleted successfully",
-  });
-});
+// UPDATE PRIORITY
 exports.updatePriority = asyncHandler(async (req, res) => {
   const { newPriority } = req.body;
 
@@ -166,6 +179,7 @@ exports.updatePriority = asyncHandler(async (req, res) => {
 
   const maxPriority = await Task.countDocuments({
     user: req.user._id,
+    status: task.status,
   });
 
   let finalPriority =
@@ -177,6 +191,7 @@ exports.updatePriority = asyncHandler(async (req, res) => {
     await Task.updateMany(
       {
         user: req.user._id,
+        status: task.status,
         priority: { $gte: finalPriority, $lt: currentPriority },
       },
       { $inc: { priority: 1 } }
@@ -185,6 +200,7 @@ exports.updatePriority = asyncHandler(async (req, res) => {
     await Task.updateMany(
       {
         user: req.user._id,
+        status: task.status,
         priority: { $gt: currentPriority, $lte: finalPriority },
       },
       { $inc: { priority: -1 } }
@@ -199,3 +215,35 @@ exports.updatePriority = asyncHandler(async (req, res) => {
     message: "Priority updated successfully",
   });
 });
+
+// REORDER TASKS 
+exports.reorderTasks = async (req, res) => {
+  try {
+
+    const statuses = ["pending", "inprogress", "completed"];
+
+    for (const status of statuses) {
+
+      const tasks = await Task.find({
+        user: req.user._id,
+        status: status
+      }).sort("priority");
+
+      for (let i = 0; i < tasks.length; i++) {
+
+        tasks[i].priority = i + 1;
+        await tasks[i].save();
+
+      }
+
+    }
+
+    res.json({ message: "Priorities reordered per column" });
+
+  } catch (error) {
+
+    console.error(error);
+    res.status(500).json({ message: error.message });
+
+  }
+};

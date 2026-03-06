@@ -8,6 +8,7 @@ const {
   updateTask,
   deleteTask,
   updatePriority,
+  reorderTasks,
 } = require("../controllers/taskController");
 
 // Create Task
@@ -15,6 +16,9 @@ router.post("/", protect, createTask);
 
 // Get Tasks
 router.get("/", protect, getTasks);
+
+// Reorder Tasks
+router.put("/reorder", protect, reorderTasks);
 
 // Update Task
 router.put("/:id", protect, updateTask);
