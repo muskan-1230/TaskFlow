@@ -1,8 +1,12 @@
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useEffect, useState } from "react";
+
 import Login from "./components/Login";
 import TaskList from "./components/TaskList";
+import NotFound from "./pages/NotFound";
 
 function App() {
+
   const [loggedIn, setLoggedIn] = useState(false);
 
   useEffect(() => {
@@ -16,20 +20,33 @@ function App() {
     setLoggedIn(true);
   };
 
-  if (!loggedIn) {
-    return <Login onLogin={handleLoginSuccess} />;
-  }
+  return (
 
-  return <TaskList />;
-  // return(
-  //   <div>
-  //     <div className="bg-red-500 text-white p-10 text-3xl">
-  //       TEST TAILWIND
-  //     </div>
+    <BrowserRouter>
 
-  //     <TaskList />
-  //   </div>
-  // );
+      <Routes>
+
+        {/* Home Route */}
+        <Route
+          path="/"
+          element={
+            loggedIn
+              ? <TaskList/>
+              : <Login onLogin={handleLoginSuccess}/>
+          }
+        />
+
+        {/* 404 Page */}
+        <Route
+          path="*"
+          element={<NotFound/>}
+        />
+
+      </Routes>
+
+    </BrowserRouter>
+
+  );
 }
 
 export default App;
