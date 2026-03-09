@@ -1,114 +1,138 @@
 import { useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
-function Login({ onLogin }) {
+function Login({ onLogin, goToRegister }) {
 
-  const [isRegister,setIsRegister] = useState(false);
-
-  const [name,setName] = useState("");
+  const navigate = useNavigate();
   const [email,setEmail] = useState("");
   const [password,setPassword] = useState("");
+  const [showPassword,setShowPassword] = useState(false);
 
-  const handleSubmit = async () => {
+  const handleLogin = async () => {
 
-    try {
+    try{
 
-      if(isRegister){
+      const res = await axios.post(
+        "http://localhost:5000/api/auth/login",
+        {
+          email: email.toLowerCase(),
+          password
+        }
+      );
 
-        await axios.post(
-          "http://localhost:5000/api/auth/register",
-          { name,email,password }
-        );
-
-        alert("Account created. Please login.");
-        setIsRegister(false);
-
-      }else{
-
-        const res = await axios.post(
-          "http://localhost:5000/api/auth/login",
-          { email,password }
-        );
-
-        localStorage.setItem("token",res.data.token);
-
-        onLogin();
-
-      }
+      localStorage.setItem("token",res.data.token);
+      navigate("/dashboard");
 
     }catch(err){
-
-      alert("Error: "+err.response?.data?.message || "Something went wrong");
-
+      alert("Invalid credentials");
     }
 
   };
 
-  return(
+  return (
 
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+<div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-slate-950">
 
-      <div className="bg-white p-8 rounded-xl shadow-md w-[350px]">
+<img
+src="https://images.unsplash.com/photo-1484417894907-623942c8ee29"
+className="absolute w-full h-full object-cover blur-sm opacity-40"
+/>
 
-        <h2 className="text-2xl font-bold mb-6 text-center">
+<div className="absolute inset-0 bg-gradient-to-br from-purple-900/60 via-black/60 to-pink-900/60"></div>
 
-          {isRegister ? "Create Account" : "Login"}
+<div className="relative w-[1000px] h-[600px] grid grid-cols-2 rounded-3xl overflow-hidden shadow-2xl border border-white/20 backdrop-blur-xl bg-white/10 hover:shadow-[0_25px_60px_rgba(236,72,153,0.35)] float-card">
 
-        </h2>
+{/* IMAGE */}
 
-        {isRegister && (
+<div className="relative">
 
-          <input
-            type="text"
-            placeholder="Name"
-            value={name}
-            onChange={(e)=>setName(e.target.value)}
-            className="border p-2 rounded w-full mb-3"
-          />
+<img
+src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f"
+className="w-full h-full object-cover"
+/>
 
-        )}
+<div className="absolute inset-0 bg-gradient-to-br from-black/70 via-purple-900/60 to-pink-600/40"></div>
 
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e)=>setEmail(e.target.value)}
-          className="border p-2 rounded w-full mb-3"
-        />
+<div className="absolute bottom-10 left-10 text-white max-w-[250px]">
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e)=>setPassword(e.target.value)}
-          className="border p-2 rounded w-full mb-4"
-        />
+<h1 className="text-4xl font-bold">
+TaskFlow
+</h1>
 
-        <button
-          onClick={handleSubmit}
-          className="bg-blue-500 hover:bg-blue-600 text-white w-full py-2 rounded"
-        >
+<p className="text-sm opacity-80 mt-2">
+Small disciplined actions today build powerful habits tomorrow.
+</p>
 
-          {isRegister ? "Register" : "Login"}
+</div>
 
-        </button>
+</div>
 
-        <p className="text-center text-sm mt-4">
 
-          {isRegister ? "Already have an account?" : "New user?"}
+{/* FORM */}
 
-          <span
-            onClick={()=>setIsRegister(!isRegister)}
-            className="text-blue-500 cursor-pointer ml-1"
-          >
-            {isRegister ? "Login" : "Register"}
-          </span>
+<div className="flex flex-col justify-center px-16 text-white">
 
-        </p>
+<h2 className="text-3xl font-semibold mb-10">
+Login
+</h2>
 
-      </div>
+<input
+type="email"
+placeholder="Email"
+value={email}
+onChange={(e)=>setEmail(e.target.value)}
+className="bg-white/10 border border-white/20 rounded-lg p-3 mb-6 outline-none focus:border-pink-400"
+/>
 
-    </div>
+
+<div className="relative mb-10">
+
+<input
+type={showPassword ? "text":"password"}
+placeholder="Password"
+value={password}
+onChange={(e)=>setPassword(e.target.value)}
+className="w-full bg-white/10 border border-white/20 rounded-lg p-3 outline-none focus:border-pink-400"
+/>
+
+<button
+type="button"
+onClick={()=>setShowPassword(!showPassword)}
+className="absolute right-3 top-3"
+>
+{showPassword ? "🙈":"👁"}
+</button>
+
+</div>
+
+
+<button
+onClick={handleLogin}
+className="bg-pink-500 hover:bg-pink-600 py-3 rounded-full font-medium"
+>
+Login
+</button>
+
+
+<p className="text-sm text-gray-300 mt-8 text-center">
+
+Don't have an account?
+
+<button
+onClick={goToRegister}
+className="text-pink-400 ml-2"
+>
+Register
+</button>
+
+</p>
+
+</div>
+
+</div>
+
+</div>
 
   );
 

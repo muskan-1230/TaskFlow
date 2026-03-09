@@ -1,24 +1,10 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { useEffect, useState } from "react";
-
 import Login from "./components/Login";
+import Register from "./components/Register";
 import TaskList from "./components/TaskList";
-import NotFound from "./pages/NotFound";
+import Error404 from "./pages/Error404";
 
 function App() {
-
-  const [loggedIn, setLoggedIn] = useState(false);
-
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      setLoggedIn(true);
-    }
-  }, []);
-
-  const handleLoginSuccess = () => {
-    setLoggedIn(true);
-  };
 
   return (
 
@@ -26,27 +12,20 @@ function App() {
 
       <Routes>
 
-        {/* Home Route */}
-        <Route
-          path="/"
-          element={
-            loggedIn
-              ? <TaskList/>
-              : <Login onLogin={handleLoginSuccess}/>
-          }
-        />
+        <Route path="/" element={<Login />} />
 
-        {/* 404 Page */}
-        <Route
-          path="*"
-          element={<NotFound/>}
-        />
+        <Route path="/register" element={<Register />} />
+
+        <Route path="/dashboard" element={<TaskList />} />
+
+        <Route path="*" element={<Error404 />} />
 
       </Routes>
 
     </BrowserRouter>
 
   );
+
 }
 
 export default App;
